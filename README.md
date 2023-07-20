@@ -3,12 +3,18 @@
 **one-line LLM output parsers for JS/TS.** no code bloat. one file. three parsers.
 
 ## how it works
-```js
+```javascript
 import { binary, categorize, list } from 'langschema'
 
 const positive: boolean = await binary('Did this review user like the business? Review: Best bang for your buck.')
-const foods: string[] = await list('What foods did this review user like? Review: i loved pizza and milkshakes', ['pizza', 'burger', 'fries'])
-const rating: string = await categorize('What rating did this review user give? Review: could NOT recommend it more, best ive ever eaten', ['1 star', '2 stars', '3 stars', '4 stars', '5 stars'])
+const foods: string[] = await list('What foods did this review user like? Review: i loved pizza and milkshakes', 
+  ['pizza', 'burger', 'fries']
+)
+const rating: string = await categorize(
+  `What rating would this review user give?
+  Review: could NOT recommend it more, best ive ever eaten`, 
+  ['1 star', '2 stars', '3 stars', '4 stars', '5 stars']
+)
 ```
 
 ## features
