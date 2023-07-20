@@ -4,7 +4,7 @@
 
 ## how it works
 ```javascript
-import { bool } from 'langschema'
+import { bool, list, categorize } from 'langschema'
 
 const isGood: boolean = await bool('Is this review positive? Review: Best bang for your buck.')
 
