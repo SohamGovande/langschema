@@ -31,7 +31,7 @@ function createLLM(promptOptions?: GenericPromptOptions) {
  *
  * @async
  */
-export async function binary(prompt: string, promptOptions?: GenericPromptOptions): Promise<boolean> {
+export async function bool(prompt: string, promptOptions?: GenericPromptOptions): Promise<boolean> {
   if (!prompt)  {
     return false
   }

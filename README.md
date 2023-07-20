@@ -1,15 +1,18 @@
 # 🧱 langschema
 
-**one-line LLM output parsers for JS/TS.** no code bloat. one file. three parsers.
+**one-line LLM output parsers for JS/TS.** no code bloat. one file.
 
 ## how it works
 ```javascript
-import { binary, categorize, list } from 'langschema'
+import { bool } from 'langschema'
 
-const positive: boolean = await binary('Did this review user like the business? Review: Best bang for your buck.')
-const foods: string[] = await list('What foods did this review user like? Review: i loved pizza and milkshakes', 
+const isGood: boolean = await bool('Is this review positive? Review: Best bang for your buck.')
+
+const foodsAte: string[] = await list(
+  'What foods did this review user like? Review: i loved pizza and milkshakes', 
   ['pizza', 'burger', 'fries']
 )
+
 const rating: string = await categorize(
   `What rating would this review user give?
   Review: could NOT recommend it more, best ive ever eaten`, 
@@ -19,7 +22,7 @@ const rating: string = await categorize(
 
 ## features
 
-### binary parser
+### boolean parser
 useful for parsing outputs that are in a binary format, i.e., `true` or `false`.
 
 ### categorize parser
