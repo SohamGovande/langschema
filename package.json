@@ -2,13 +2,13 @@
   "name": "langschema",
   "version": "1.0.0",
   "type": "module",
-  "description": "",
+  "description": "one-line LLM output parsers for JS/TS",
   "main": "index.ts",
   "scripts": {
     "test": "jest"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["ai", "llm", "output-parser"],
+  "author": "Soham Govande",
   "license": "ISC",
   "dependencies": {
     "dotenv": "^16.3.1",
