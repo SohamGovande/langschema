@@ -2,7 +2,16 @@
 
 **one-line LLM output parsers for JS/TS.** no code bloat. one file.
 
-## how it works
+## how to use
+
+### 1. install the package
+```bash
+npm i langschema
+```
+
+### 2. use any of our one-line parsers
+``
+
 ```javascript
 import { bool, list, categorize } from 'langschema'
 
