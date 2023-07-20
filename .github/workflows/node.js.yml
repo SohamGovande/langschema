@@ -1,0 +1,24 @@
+name: Run unit tests
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+
+    steps:
+    - uses: pnpm/action-setup@v2
+      with:
+        version: 6.0.2
+    - name: Use Node.js ${{ matrix.node-version }}
+    - run: pnpm install
+    - run: pnpm run test
