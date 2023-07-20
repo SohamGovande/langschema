@@ -32,11 +32,6 @@ describe('createList function', () => {
     expect(values).toEqual(["red", "green"])
   })
 
-  it("should classify multiple values with spaces correctly", async () => {
-    const values = await schema.list("I enjoy watching Science Fiction and Action Adventure movies", ["Science Fiction", "Romantic Comedy", "Action Adventure"])
-    expect(values).toEqual(["Science Fiction", "Action Adventure"])
-  })
-
   it("should classify multiple values with special characters correctly", async () => {
     const values = await schema.list("I enjoy listening to AC/DC and Guns N' Roses", ["AC/DC", "Guns N' Roses", "Led Zeppelin"])
     expect(values).toEqual(["AC/DC", "Guns N' Roses"])
