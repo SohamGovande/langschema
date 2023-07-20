@@ -10,7 +10,6 @@ npm i langschema
 ```
 
 ### 2. use any of our one-line parsers
-``
 
 ```javascript
 import { bool, list, categorize } from 'langschema'
