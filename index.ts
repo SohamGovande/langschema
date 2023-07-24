@@ -125,7 +125,7 @@ export async function categorize(prompt: string, allowedValues: AtLeastOne<strin
  *
  * @export
  * @param {string} prompt - The prompt message to display to the user.
- * @param {AtLeastOne<string>} allowedValues - Array of allowable values.
+ * @param {null | AtLeastOne<string>} allowedValues - Array of allowable values. Null indicates that any string is allowed.
  * @param {number} [minValues=1] - The minimum number of values the user must select.
  * @param {number} [maxValues=5] - The maximum number of values the user can select.
  * @param {GenericPromptOptions} [promptOptions] - Optional settings for the prompt.
@@ -136,7 +136,7 @@ export async function categorize(prompt: string, allowedValues: AtLeastOne<strin
  *
  * @async
  */
-export async function list(prompt: string, allowedValues: AtLeastOne<string>, minValues = 1, maxValues = 5, promptOptions?: GenericPromptOptions): Promise<string[]> {
+export async function list(prompt: string, allowedValues: null | AtLeastOne<string>, minValues = 1, maxValues = 5, promptOptions?: GenericPromptOptions): Promise<string[]> {
   if (minValues >= maxValues) {
     throw new Error("minValues must be less than maxValues")
   }
@@ -149,8 +149,13 @@ export async function list(prompt: string, allowedValues: AtLeastOne<string>, mi
   const llm = createLLM(promptOptions)
   const zeroMessage = minValues === 0 ? "You may also answer with no values." : ""
   const multipleMessage = minValues > 1 ? "You may also answer with multiple values." : ""
+  const allowedValuesMessage = allowedValues ? ` of the following allowed values: ${allowedValues.join(", ")}. You MUST use the exact spelling and capitalization of the values` : ""
+  const itemsType: any = { type: "string" }
+  if (allowedValues) {
+    itemsType.enum = allowedValues
+  }
   const result = await llm.call([
-    new SystemMessage(`Answer the following question with AT LEAST ${minValues} and AT MOST ${maxValues} of the following allowed values: ${allowedValues.join(", ")}. You MUST use the exact spelling and capitalization of the values. ${multipleMessage}${zeroMessage}`),
+    new SystemMessage(`Answer the following question with AT LEAST ${minValues} and AT MOST ${maxValues}${allowedValuesMessage}. ${multipleMessage}${zeroMessage}`),
     new HumanMessage(prompt)
   ], {
     function_call: {name: "answer"},
@@ -164,13 +169,10 @@ export async function list(prompt: string, allowedValues: AtLeastOne<string>, mi
           properties: {
             value: {
               type: "array",
-              description: "The values to use, MUST be from the list of allowed values",
+              description: "The values to use",
               minItems: minValues,
               maxItems: maxValues,
-              items: {
-                type: "string",
-                enum: allowedValues
-              }
+              items: itemsType
             },
           },
         },
@@ -179,7 +181,7 @@ export async function list(prompt: string, allowedValues: AtLeastOne<string>, mi
   })
   const returnedValue = JSON.parse(result.additional_kwargs.function_call?.arguments as string)
   const zStringArrayAnswer = z.object({
-    value: z.array(z.enum(allowedValues))
+    value: z.array(allowedValues ? z.enum(allowedValues) : z.string())
   })
   const parsedValue = zStringArrayAnswer.parse(returnedValue).value
   if (parsedValue.length < minValues) {
@@ -207,6 +209,7 @@ export async function string(prompt: string) {
   }
   const llm = createLLM()
   const result = await llm.call([
+    new SystemMessage("You will follow the user's instructions exactly. You will respond with ONLY what the user requests, and NO extraneous information like 'Sure, here you go:', or 'That's a great question!', etc."),
     new HumanMessage(prompt)
   ])
   return result.content
