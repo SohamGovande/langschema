@@ -40,7 +40,7 @@ function buildLLMOptions(promptOptions?: GenericPromptOptions) {
 /**
  * Asynchronously handles a binary prompt to return a boolean answer.
  *
- * This function creates a Language Learning Model (LLM) from the provided options
+ * This function creates a Large Language Model (LLM) from the provided options
  * and prompts the user with a message. It then returns a boolean value based on the
  * user's answer.
  *
@@ -99,7 +99,7 @@ export async function bool(prompt: string, promptOptions?: GenericPromptOptions)
 /**
  * Asynchronously handles a categorical prompt and returns the classified category
  *
- * This function creates a Language Learning Model (LLM) from the provided options
+ * This function creates a Large Language Model (LLM) from the provided options
  * and prompts the user with a message. It then returns the selected category,
  * which must be one of the provided allowed values.
  *
@@ -159,7 +159,7 @@ export async function categorize(prompt: string, allowedValues: AtLeastOne<strin
 /**
  * Asynchronously handles a list prompt and returns an array of selected values.
  *
- * This function creates a Language Learning Model (LLM) from the provided options
+ * This function creates a Large Language Model (LLM) from the provided options
  * and prompts the user with a message. The user is expected to select a minimum
  * and maximum number of values from the allowed list, and the function returns an array
  * of these values.
