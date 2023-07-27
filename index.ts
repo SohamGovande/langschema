@@ -1,5 +1,4 @@
-import {ChatOpenAI} from "langchain/chat_models/openai"
-import {HumanMessage, SystemMessage} from "langchain/schema";
+import {OpenAIApi, Configuration, CreateChatCompletionRequest} from 'openai'
 import {z, type ZodError} from 'zod'
 
 interface GenericPromptOptions {
@@ -8,11 +7,34 @@ interface GenericPromptOptions {
 
 type AtLeastOne<T> = [T, ...T[]];
 
-function createLLM(promptOptions?: GenericPromptOptions) {
-  return new ChatOpenAI({
+async function backoff<T>(
+  retries: number,
+  fn: () => Promise<T>,
+  delay = 500
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries === 1) throw error;
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return backoff(retries - 1, fn, delay * 2);
+  }
+}
+
+function buildLLM() {
+  const openai = new OpenAIApi(new Configuration({ apiKey: process.env.OPENAI_API_KEY }))
+  return {
+    createChatCompletion(request: CreateChatCompletionRequest) {
+      return backoff(10,  () => openai.createChatCompletion(request), 500)
+    }
+  }
+}
+
+function buildLLMOptions(promptOptions?: GenericPromptOptions) {
+  return {
     temperature: 0,
-    modelName: promptOptions?.gpt4 ? "gpt-4" : "gpt-3.5-turbo"
-  })
+    model: promptOptions?.gpt4 ? "gpt-4" : "gpt-3.5-turbo"
+  }
 }
 
 /**
@@ -32,14 +54,23 @@ function createLLM(promptOptions?: GenericPromptOptions) {
  * @async
  */
 export async function bool(prompt: string, promptOptions?: GenericPromptOptions): Promise<boolean> {
-  if (!prompt)  {
+  if (!prompt) {
     return false
   }
-  const llm = createLLM(promptOptions)
-  const result = await llm.call([
-    new SystemMessage("Answer the following question with a true or false."),
-    new HumanMessage(prompt)
-  ], {
+  const openai = buildLLM()
+  const llmOptions = buildLLMOptions(promptOptions)
+  const result = await openai.createChatCompletion({
+    ...llmOptions,
+    messages: [
+      {
+        role: 'system',
+        content: 'Answer the following question with a true or false.'
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ],
     function_call: {name: "answer"},
     functions: [
       {
@@ -60,7 +91,8 @@ export async function bool(prompt: string, promptOptions?: GenericPromptOptions)
     ]
   })
   const zBooleanAnswer = z.object({value: z.boolean()})
-  const answer = JSON.parse(result.additional_kwargs.function_call?.arguments as string)
+
+  const answer = JSON.parse(result.data.choices[0].message?.function_call?.arguments as string)
   return zBooleanAnswer.parse(answer).value
 }
 
@@ -86,11 +118,20 @@ export async function categorize(prompt: string, allowedValues: AtLeastOne<strin
   if (!prompt) {
     throw new Error("Prompt is required")
   }
-  const llm = createLLM(promptOptions)
-  const result = await llm.call([
-    new SystemMessage(`Answer the following question with one of the following allowed values: ${allowedValues.join(", ")}. You MUST use the exact spelling and capitalization of the values.`),
-    new HumanMessage(prompt)
-  ], {
+  const openai = buildLLM()
+  const llmOptions = buildLLMOptions(promptOptions)
+  const result = await openai.createChatCompletion({
+    ...llmOptions,
+    messages: [
+      {
+        role: 'system',
+        content: `Answer the following question with one of the following allowed values: ${allowedValues.join(", ")}. You MUST use the exact spelling and capitalization of the values.`
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ],
     function_call: {name: "answer"},
     functions: [
       {
@@ -110,7 +151,7 @@ export async function categorize(prompt: string, allowedValues: AtLeastOne<strin
       }
     ]
   })
-  const returnedValue = JSON.parse(result.additional_kwargs.function_call?.arguments as string)
+  const returnedValue = JSON.parse(result.data.choices[0].message?.function_call?.arguments as string)
   const zStringAnswer = z.object({value: z.enum(allowedValues)})
   return zStringAnswer.parse(returnedValue).value
 }
@@ -146,18 +187,27 @@ export async function list(prompt: string, allowedValues: null | AtLeastOne<stri
   if (!prompt) {
     return []
   }
-  const llm = createLLM(promptOptions)
+  const llmOptions = buildLLMOptions(promptOptions)
   const zeroMessage = minValues === 0 ? "You may also answer with no values." : ""
   const multipleMessage = minValues > 1 ? "You may also answer with multiple values." : ""
   const allowedValuesMessage = allowedValues ? ` of the following allowed values: ${allowedValues.join(", ")}. You MUST use the exact spelling and capitalization of the values` : ""
-  const itemsType: any = { type: "string" }
+  const itemsType: any = {type: "string"}
   if (allowedValues) {
     itemsType.enum = allowedValues
   }
-  const result = await llm.call([
-    new SystemMessage(`Answer the following question with AT LEAST ${minValues} and AT MOST ${maxValues}${allowedValuesMessage}. ${multipleMessage}${zeroMessage}`),
-    new HumanMessage(prompt)
-  ], {
+  const openai = buildLLM()
+  const result = await openai.createChatCompletion({
+    ...llmOptions,
+    messages: [
+      {
+        role: 'system',
+        content: `Answer the following question with AT LEAST ${minValues} and AT MOST ${maxValues}${allowedValuesMessage}. ${multipleMessage}${zeroMessage}`
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ],
     function_call: {name: "answer"},
     functions: [
       {
@@ -179,7 +229,7 @@ export async function list(prompt: string, allowedValues: null | AtLeastOne<stri
       }
     ]
   })
-  const returnedValue = JSON.parse(result.additional_kwargs.function_call?.arguments as string)
+  const returnedValue = JSON.parse(result.data.choices[0].message?.function_call?.arguments as string)
   const zStringArrayAnswer = z.object({
     value: z.array(allowedValues ? z.enum(allowedValues) : z.string())
   })
@@ -203,14 +253,24 @@ export async function list(prompt: string, allowedValues: null | AtLeastOne<stri
  *
  * @async
  */
-export async function string(prompt: string) {
+export async function string(prompt: string): Promise<string> {
   if (!prompt) {
     return ""
   }
-  const llm = createLLM()
-  const result = await llm.call([
-    new SystemMessage("You will follow the user's instructions exactly. You will respond with ONLY what the user requests, and NO extraneous information like 'Sure, here you go:', or 'That's a great question!', etc."),
-    new HumanMessage(prompt)
-  ])
-  return result.content
+  const openai = buildLLM()
+  const llmOptions = buildLLMOptions()
+  const result = await openai.createChatCompletion({
+    ...llmOptions,
+    messages: [
+      {
+        role: 'system',
+        content: "You will follow the user's instructions exactly. You will respond with ONLY what the user requests, and NO extraneous information like 'Sure, here you go:', or 'That's a great question!', etc."
+      },
+      {
+        role: 'user',
+        content: prompt
+      }
+    ],
+  })
+  return result.data.choices[0].message!.content!
 }
