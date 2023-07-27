@@ -38,6 +38,21 @@ function buildLLMOptions(promptOptions?: GenericPromptOptions) {
   }
 }
 
+/**
+ * This function parses the given input into a given Zod type using the OpenAI API. The
+ * input type can be ANY Zod type, not just an object - a boolean, a number, an enum,
+ * etc. are all valid inputs.
+ *
+ * @export
+ * @param {string} prompt - The input to parse
+ * @param zodType - The Zod type to parse the response into.
+ * @param {GenericPromptOptions} [promptOptions] - Optional settings for the prompt.
+ * @returns {Promise<T>} A promise that resolves to the parsed value.
+ *
+ * @throws {ZodError} If the parsed response does not match the expected structure.
+ *
+ * @async
+ */
 export async function asZodType<T>(prompt: string, zodType: z.ZodType<T>, promptOptions?: GenericPromptOptions): Promise<T> {
   if (!prompt) {
     return zodType.parse("")
