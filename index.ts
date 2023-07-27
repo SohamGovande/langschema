@@ -1,5 +1,6 @@
 import {OpenAIApi, Configuration, CreateChatCompletionRequest} from 'openai'
 import {z, type ZodError} from 'zod'
+import {zodToJsonSchema} from "zod-to-json-schema"
 
 interface GenericPromptOptions {
   gpt4?: boolean
@@ -22,10 +23,10 @@ async function backoff<T>(
 }
 
 function buildLLM() {
-  const openai = new OpenAIApi(new Configuration({ apiKey: process.env.OPENAI_API_KEY }))
+  const openai = new OpenAIApi(new Configuration({apiKey: process.env.OPENAI_API_KEY}))
   return {
     createChatCompletion(request: CreateChatCompletionRequest) {
-      return backoff(10,  () => openai.createChatCompletion(request), 500)
+      return backoff(10, () => openai.createChatCompletion(request), 500)
     }
   }
 }
@@ -35,6 +36,43 @@ function buildLLMOptions(promptOptions?: GenericPromptOptions) {
     temperature: 0,
     model: promptOptions?.gpt4 ? "gpt-4" : "gpt-3.5-turbo"
   }
+}
+
+export async function asZodType<T>(prompt: string, zodType: z.ZodType<T>, promptOptions?: GenericPromptOptions): Promise<T> {
+  if (!prompt) {
+    return zodType.parse("")
+  }
+  const openai = buildLLM()
+  const llmOptions = buildLLMOptions(promptOptions)
+  let wrapperZod: any
+  let shouldWrap = (zodType._def as any).typeName !== "ZodObject"
+  if (shouldWrap) {
+    wrapperZod = z.object({value: zodType})
+  } else {
+    wrapperZod = zodType
+  }
+
+  const jsonSchema = zodToJsonSchema(wrapperZod, "wrapper").definitions?.wrapper
+
+  const result = await openai.createChatCompletion({
+    ...llmOptions,
+    messages: [
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    function_call: {name: "answer"},
+    functions: [
+      {
+        name: "answer",
+        description: "Answer the user's question",
+        parameters: jsonSchema
+      }
+    ]
+  })
+  const evaluated = wrapperZod.parse(JSON.parse(result.data.choices[0].message!.function_call!.arguments!))
+  return shouldWrap ? (evaluated.value as T) : evaluated as T
 }
 
 /**
@@ -63,11 +101,11 @@ export async function bool(prompt: string, promptOptions?: GenericPromptOptions)
     ...llmOptions,
     messages: [
       {
-        role: 'system',
+        role: "system",
         content: 'Answer the following question with a true or false.'
       },
       {
-        role: 'user',
+        role: "user",
         content: prompt
       }
     ],
@@ -124,11 +162,11 @@ export async function categorize(prompt: string, allowedValues: AtLeastOne<strin
     ...llmOptions,
     messages: [
       {
-        role: 'system',
+        role: "system",
         content: `Answer the following question with one of the following allowed values: ${allowedValues.join(", ")}. You MUST use the exact spelling and capitalization of the values.`
       },
       {
-        role: 'user',
+        role: "user",
         content: prompt
       }
     ],
@@ -200,11 +238,11 @@ export async function list(prompt: string, allowedValues: null | AtLeastOne<stri
     ...llmOptions,
     messages: [
       {
-        role: 'system',
+        role: "system",
         content: `Answer the following question with AT LEAST ${minValues} and AT MOST ${maxValues}${allowedValuesMessage}. ${multipleMessage}${zeroMessage}`
       },
       {
-        role: 'user',
+        role: "user",
         content: prompt
       }
     ],
@@ -263,11 +301,11 @@ export async function string(prompt: string): Promise<string> {
     ...llmOptions,
     messages: [
       {
-        role: 'system',
+        role: "system",
         content: "You will follow the user's instructions exactly. You will respond with ONLY what the user requests, and NO extraneous information like 'Sure, here you go:', or 'That's a great question!', etc."
       },
       {
-        role: 'user',
+        role: "user",
         content: prompt
       }
     ],
