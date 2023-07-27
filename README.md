@@ -12,7 +12,7 @@ npm i langschema
 ### 2. use any of our one-line parsers
 
 ```javascript
-import { bool, list, categorize } from 'langschema'
+import { bool, list, categorize, asZodType } from 'langschema'
 
 const isGood: boolean = await bool('Is this review positive? Review: Best bang for your buck.')
 
@@ -26,6 +26,14 @@ const rating: string = await categorize(
   Review: could NOT recommend it more, best ive ever eaten`, 
   ['1 star', '2 stars', '3 stars', '4 stars', '5 stars']
 )
+
+const userSchema = z.object({
+  name: z.string(),
+  age: z.number(),
+})
+
+const user = await asZodType('hi my name is John and im 21 years old', userSchema)
+// => { name: "John", age: 21 }
 ```
 
 ## features
@@ -38,3 +46,6 @@ it assists in parsing outputs that can be categorized into a specific set of str
 
 ### list parser
 this is intended to parse outputs that are lists of specific set of strings (enums).
+
+### zod parser
+parse ANY zod type with this parser.
